@@ -1,0 +1,1 @@
+mongodb is no sql database (document based)

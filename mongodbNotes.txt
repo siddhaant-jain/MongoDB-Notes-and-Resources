@@ -1,1 +1,141 @@
-mongodb is no sql database (document based)
+mongodb is no sql database 
+- non relational  database
+- document based
+
+type of nosql database:
+    - document based
+    - key-value based
+    - wide-column database
+    - graph database
+
+- type 'mongo' in unix shell to open mongo shell and exit() to exit mongo shell
+- 'show dbs' command in mongo shell to see list of databases and space they have occupied
+    -- if we create any new database it will not show in list of databases (by showdbs) 
+        until it has atleast 1 document
+- use siddhantdb -- to create a new database and start using it
+- db -- to check which database is being currently used
+- db.createCollection('FacebookComments') -- to create a new collection in currentl database
+- db.instagramComments.insert({username:'siddhant_jain5', post_id:'instagram.com/ab4df', comment:'good'})
+    -- 2nd way of creating table <- we directly insert a record in the table and if table is not present,
+        it will create the table and insert the record
+-- always prefer first way (createCollection command), we can provide additional paramerters in that
+- db.createCollection(collection_name, {capped:true, size:5242880, max:5})
+    -- capped true means that this collection can have maximum of 5 documents or less
+    -- and maximum size cannot exceed 5242880 
+    -- if it reaches in 4 documents then only 4 documents will be there
+    -- if it reaches in 6 documents then 5 documents will be there
+
+mongodb has two type of documents
+- relational documents
+- embedded documents (preferred)(better for scalability)
+
+- db.student.insert({regNo: "1234",name: "student1", course: {courseName: "MCA", duration: "3 years"},address: { city: "bangalore", state: "KA", country: "India"}})
+-- here couse and address are embedded documents
+-- both of them do not have any primary key of their own and are dependent on student object
+
+- mongodb create a unique objectId for each document which is nothing but a primary key (key="_id)
+- we can override and mention our own primary key by providing value to _id key
+- db.student.insert({_id: "5678", regNo: "5678",name: "student2", course: {courseName: "MCA", duration: "3 years"},address: { city: "bangalore", state: "KA", country: "India"}})
+- _id is the only key which is used as primary key, we can't provide any other 
+
+-- to do bulk insert write following in mongo shell
+var bulkDocuments = [{username:'siddhant_jain5', post_id:'instagram.com/ab4df', comment:'good'}, {username:'insta_user', post_id:'instagram.com/avg75v', comment:'better'}, {username:'fb_user', post_id:'instagram.com/kjnrke', comment:'best'}]
+db.FacebookComments.insert(bulkDocuments)
+var bulkDocuments2 = [{username:'siddhant_jain6', post_id:'instagram.com/ab4df', comment:'good'}, {username:'quora_user', post_id:'instagram.com/avg75v', comment:'better'}, {username:'linkedin_user', post_id:'instagram.com/kjnrke', comment:'best'}]
+db.FacebookComments.insert(bulkDocuments2)
+
+-- update records in mongodb
+- db.FacebookComments.update({comment:"good"},{$set:{"comment":"more than good"}})
+-- when we use update, it only changes 1 record even if multiple documents satisfy the condition
+-- it starts from top, updates the first document with matching condition and the stops
+
+- db.FacebookComments.update({comment:"better"},{$set:{"comment":"all better"}}, {multi:true})
+-- {multi:true} will change all records matching the condition
+
+-- upsert in mongodb
+- db.FacebookComments.update({comment:"better"},{$set:{"comment":"all better"}}, {upsert:true})
+-- if it finds a record with comment "better" it updates that record
+-- else it create a new record with just one key:value i.e. what we mentioned in set command
+
+-- delete document in mongodb
+- db.FacebookComments.remove({"comment":"all better"})
+-- remove command will remove all records (unlike update command)
+
+- show collections -- to get list of collections in current database
+- db.instagramComments.find() -- to list all records in a collection
+
+-- to query documents based on some condition
+- db.FacebookComments.find({comment:"best"})
+-- it will return all the records which match the condition
+-- if we give any key which is not in documents then it will give empty result and not error
+    bcz it is nosql so no fixed schema, key can be present in one doc and not present in another
+
+db.FacebookComments.find().limit(2)
+-- to limit number of records displayed (first 2 records will be shown)
+
+--sort the records
+db.FacebookComments.find().sort({username: -1})
+-- -1 will sort it in descending order
+-- 1 will sort in ascending order
+
+-- search based on embedded column
+db.student.find({"address.city": "bangalore"})
+
+-- find all students with student ids between a range
+- db.student.insert({regNo: "1240",name: "student3", course: {courseName: "MCA", duration: "3 years"},address: { city: "jhansi", state: "UP", country: "India"}})
+- db.student.insert({regNo: "1284",name: "student4", course: {courseName: "MCA", duration: "3 years"},address: { city: "jhansi", state: "UP", country: "India"}})
+- db.student.insert({regNo: "1354",name: "student5", course: {courseName: "MCA", duration: "3 years"},address: { city: "jhansi", state: "UP", country: "India"}})
+- db.student.insert({regNo: "5234",name: "student6", course: {courseName: "MCA", duration: "3 years"},address: { city: "jhansi", state: "UP", country: "India"}})
+
+- db.student.find({regNo: {$gt: "5000"}}) -- get all record will regNo greater than(gt) 5000 
+    -- since input is a string if we provide 5000 without quotes in query, it will not return anything
+- db.student.find({regNo: {$lt: "5000"}})
+- db.student.find({regNo: {$in: ["1240","1340"]}}) -- only records which have regNo as either 1240 or 1340
+- db.student.find({regNo: {$gt: "1240", $lt:"1354"}}) -- boundaries exclusive (1240 and 1354 will not be in o/p)
+
+-- indexing in mongodb
+- db.student_new.insert({regNo: "1234",name: "student1", section:"F4", course: {courseName: "MCA", duration: "3 years"},address: { city: "bangalore", state: "KA", country: "India"}})
+- db.student_new.insert({regNo: "5678",name: "student2", section:"F2", course: {courseName: "MCA", duration: "3 years"},address: { city: "bangalore", state: "KA", country: "India"}})
+- db.student_new.insert({regNo: "1240",name: "student3", section:"F4", course: {courseName: "MCA", duration: "3 years"},address: { city: "jhansi", state: "UP", country: "India"}})
+- db.student_new.insert({regNo: "1284",name: "student4", section:"F2", course: {courseName: "MCA", duration: "3 years"},address: { city: "jhansi", state: "UP", country: "India"}})
+- db.student_new.insert({regNo: "1354",name: "student5", section:"F4", course: {courseName: "MCA", duration: "3 years"},address: { city: "jaipur", state: "UP", country: "India"}})
+- db.student_new.insert({regNo: "5234",name: "student6", section:"F2", course: {courseName: "MCA", duration: "3 years"},address: { city: "jaipur", state: "UP", country: "India"}})
+- db.student_new.explain("executionStats").find({section: "F4"})
+-- under executionStats there is a key called totalDocsExamined: its value is 6 
+    -- which is total number of records in the collection right now
+-- if there are millions of records, then it will go through all million records to search for given criteria
+
+- db.student_new.createIndex({section: 1})
+ -- to apply index on section key,and 1 to have it in ascending order
+ -- this will add another index, and not remove current indexes
+ -- since before it was 1, if we run getIndexes now it will give 2
+ -- now executionStats command will show totalDocsExamined value as 3 
+    -- which is no. of rec having this value
+
+- db.student_new.dropIndex("section_1")
+ -- if we check in getIndexes this will be mentioned as name
+ -- first is the key name followed by underscore followed by ascending or descending
+ -- if we just say key name it will throw error saying index not found
+
+-- aggregations in mongodb
+$project -> to select specific fields
+$match -> filter operation
+$group -> aggregation operation
+$sort -> sort operation
+- db.student_new.aggregate([{"$match": {$and: [{"section":"F4"}, {"regNo":{"$gt":"1239"}}]} }])
+- db.student_new.aggregate([{"$project":{"name":1, "section":1, "address.city":1}}])
+    -- if we mention 1 it will be displayed and if we mention 0 then not displayed
+    -- we can also skip the columns we don't want to select
+    -- for _id column we explicitly need to mention 0 otherwise it will be displayed
+
+- db.student_new.aggregate([{"$project":{"name":1, "section":1, "address.city":1, "_id":0}}])
+- db.student_new.aggregate([{"$match": {"section":"F4"}}, {"$project":{"name":1, "section":1, "address.city":1, "_id":0}}])
+
+
+- db.student_new.getIndexes() --> go get which key is current index, by default '_id'
+- db.student.count() --find number of documents in a collection
+
+- all mongodb database are stored in /data/db folder
+- table in sql is collection in mongodb
+- row in sql is document in mongodb (single record)
+

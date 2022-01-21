@@ -1,0 +1,16 @@
+version: '3'
+services:
+  mongo-database:
+    container_name: mongodb-database
+    image: mongo
+    ports:
+    - 27017:27017
+    # environment:
+    # - MONGO_INITDB_ROOT_USERNAME=siddhant
+    # - MONGO_INITDB_ROOT_PASSWORD=admin
+    volumes:
+    - ./mongo-data-volume:/data/db
+
+volumes:
+  mongo-data-volume:
+    driver: local

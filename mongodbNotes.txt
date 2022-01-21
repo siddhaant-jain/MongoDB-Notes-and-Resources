@@ -1,3 +1,12 @@
+to use mongo shell in docker: docker exec -it mongodb-database /bin/sh 
+-- mongodb-database is the container name
+
+- either don't have any environment variables in docker compose file if we don't want to make it secure
+- else use command: mongo admin -u uname -p 'password' 
+- or use command: mongo admin -u uname -p 'password' --authenticationDatabase admin
+- where uname and password should match what is given in docker compose file
+- same can be checked using 'env' command since they're environment variables
+
 mongodb is no sql database 
 - non relational  database
 - document based
@@ -131,6 +140,24 @@ $sort -> sort operation
 - db.student_new.aggregate([{"$project":{"name":1, "section":1, "address.city":1, "_id":0}}])
 - db.student_new.aggregate([{"$match": {"section":"F4"}}, {"$project":{"name":1, "section":1, "address.city":1, "_id":0}}])
 
+-- group by aggregations
+- db.student_marks.insert({regNo: 1234,name: "student1", section:"F4", marks:80.5, course: {courseName: "MCA", duration: "3 years"},address: { city: "BLORE", state: "KA", country: "India"}})
+- db.student_marks.insert({regNo: 5678,name: "student2", section:"F2", marks:70.5, course: {courseName: "MCA", duration: "3 years"},address: { city: "BLORE", state: "KA", country: "India"}})
+- db.student_marks.insert({regNo: 1240,name: "student3", section:"F4", marks:65, course: {courseName: "MCA", duration: "3 years"},address: { city: "jhansi", state: "UP", country: "India"}})
+- db.student_marks.insert({regNo: 1284,name: "student4", section:"F2", marks:92.5, course: {courseName: "MCA", duration: "3 years"},address: { city: "jhansi", state: "UP", country: "India"}})
+- db.student_marks.insert({regNo: 1354,name: "student5", section:"F4", marks:41.2, course: {courseName: "MCA", duration: "3 years"},address: { city: "jaipur", state: "RAJ", country: "India"}})
+- db.student_marks.insert({regNo: 5234,name: "student6", section:"F2", marks:33, course: {courseName: "MCA", duration: "3 years"},address: { city: "jaipur", state: "RAJ", country: "India"}})
+- db.student_marks.insert({regNo: 1235,name: "student7", section:"F4", marks:35, course: {courseName: "MCA", duration: "3 years"},address: { city: "BLORE", state: "KA", country: "India"}})
+- db.student_marks.insert({regNo: 5676,name: "student8", section:"F2", marks:95, course: {courseName: "MCA", duration: "3 years"},address: { city: "BLORE", state: "KA", country: "India"}})
+- db.student_marks.insert({regNo: 1236,name: "student9", section:"F4", marks:48, course: {courseName: "MCA", duration: "3 years"},address: { city: "jhansi", state: "UP", country: "India"}})
+- db.student_marks.insert({regNo: 1237,name: "student10", section:"F2", marks:12, course: {courseName: "MCA", duration: "3 years"},address: { city: "jhansi", state: "UP", country: "India"}})
+- db.student_marks.insert({regNo: 1338,name: "student11", section:"F4", marks:48, course: {courseName: "MCA", duration: "3 years"},address: { city: "jaipur", state: "RAJ", country: "India"}})
+- db.student_marks.insert({regNo: 5239,name: "student12", section:"F2", marks:100, course: {courseName: "MCA", duration: "3 years"},address: { city: "jaipur", state: "RAJ", country: "India"}})
+
+- db.student_marks.aggregate([{"$group":{"_id": {"section": "$section"}, "TotalMarks":{"$sum": "$marks"}}}])
+    -- id is compulsory in group by
+- db.student_marks.aggregate([{"$group":{"_id": {"section": "$section"}, "TotalMarks":{"$sum": "$marks"}, "Count":{$sum:1}, "AverageMarks":{$avg: "$marks"}}}])
+- db.student_marks.aggregate([{$match:{section: 'F4'}},{"$group":{"_id": {"section": "$section"}, "TotalMarks":{"$sum": "$marks"}}}])
 
 - db.student_new.getIndexes() --> go get which key is current index, by default '_id'
 - db.student.count() --find number of documents in a collection
@@ -139,3 +166,12 @@ $sort -> sort operation
 - table in sql is collection in mongodb
 - row in sql is document in mongodb (single record)
 
+-- replication in mongodb
+-- replication and high availability are main features of mongodb
+-- they come inbuilt with mongodb and no separate s/w installation is required
+-- replication done with master(one)-slave(many) architecture
+-- can me done using mongodb atlas
+-- in atlas we can create one free cluster (which is by default 3 node cluster)
+-- one primary node and two secondary
+-- we can insert record only in primary node and read from secondary also
+-- we need to provide network access and database access in atlas

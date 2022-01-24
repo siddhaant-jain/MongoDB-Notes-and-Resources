@@ -1,4 +1,4 @@
-from pymongo import MongoClient
+from pymongo import MongoClient 
 
 mongo_database = MongoClient(host='localhost', port=27017)
 

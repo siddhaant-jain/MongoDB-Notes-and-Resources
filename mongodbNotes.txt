@@ -72,6 +72,7 @@ db.FacebookComments.insert(bulkDocuments2)
 
 - show collections -- to get list of collections in current database
 - db.instagramComments.find() -- to list all records in a collection
+- db.instagramComments.find().pretty() -- to format documents properly like a json
 
 -- to query documents based on some condition
 - db.FacebookComments.find({comment:"best"})
@@ -175,3 +176,70 @@ $sort -> sort operation
 -- one primary node and two secondary
 -- we can insert record only in primary node and read from secondary also
 -- we need to provide network access and database access in atlas
+
+--------------------------------------------------------------------
+-- mongo db stores bson (which are binary json)
+-- max document size in mongodb can be 16mb
+-- mongodb doesn't enforce any foreign key relationship
+    -- there can be soft foreign keu relation ship
+    -- like book collection can have publisherid key
+    -- and there can be a separate publisher collection where we can get all info 
+        -- of a publisher using the publisherid
+    -- but no rules like publisherkey should be mandtorily be present in
+        -- publisher collection are enforced by mongodb (we need to take care of that)
+-- any table which is a dependent of another table can be an embedded document
+    -- for eg. rating is dependent on books or address is dependent on customers
+    -- these documents(rating/address) have no meaning by themselves
+    -- these do not need to be separate collection in mongodb
+    -- they can be a document or array of documents inside the collection they're dependent on
+    -- this saves us from performing several joins to get this data
+    -- drawback is it's a bit of overhead if we mostly don;t require ratings info with books
+-- when to use embedded documents
+    -- check if embedded doc is wanted 80% time or not?
+        -- for eg. if we are displaying books on e-commerce website where we displayed
+            ratings everytime, then we should keep it as an embedded document
+        -- suppose on a page the user only sees the list books that he has purchased
+            and doesn't require ratings since it is already purchased. then no a good
+            idea to go with embedded documents.
+    -- is embedded data a bounded set?
+        -- for eg rating will keep growing for a book as the site and the book 
+            gain popularity. so as more people rate the document will keep getting bigger 
+            and bigger and hence will not be a good idea to embed it
+            it might surpass 16mb size at some point which is not possible in mongodb
+        -- but if that embedded doc size if limited than fine, like a customer might have 
+            max of 2-3 addresses
+    -- how varied are your queries?
+        -- for eg. if a query is normal like get all list of books with its ratings, then 
+            embedded documents is a good idea
+        -- but if they're different type of queries, then data modelling should differ
+    -- whether it's integration db or application db
+        -- application db is which we use for a small scale application. where each application
+            has a single db associated to it.
+        -- integration db are used by large enterprise, where lot of different application
+            use the same db
+        -- all application should agree with the defined data model
+        -- easier to design data for application db
+
+- video course on mongodb and ODM (object document mapper) similar to ORM
+    https://www.youtube.com/watch?v=E-1xI85Zog8
+- Udemy course of the exact same vide (broken into lesson)(enrolled in udemy account)
+    https://www.udemy.com/course/draft/1358396/learn/lecture/8222114?start=0#overview
+- github repo of the above video:
+    https://github.com/mikeckennedy/mongodb-quickstart-course/tree/master/src/snake_bnb/src
+
+check for $elemmatch $gte $lte 
+
+-----------------------------------------------------------------------------------------
+
+mongod is the database server, it should always be running if we want to connect to it
+by default it runs on port 27017, we can change it by adding --port to mongod command
+same --port can be used with mongo command to open shell and connect it to server
+in windows it runs as a service in background and we don't need to manually run it
+but in linux and mac we need start it manually and keep it running as long as we want to access it
+the command for it is: mongod
+it looks for /db/data path in root folder or c/users_username (windows), 
+    if path is not present it fails to start
+if we want to store db in a different path then command is: mongod --dbpath "path of /db/data"
+
+https://www.youtube.com/playlist?list=PLp50dWW_m40UWFSV6PTgYzciZJIxgHy7Q
+https://medium.com/p/8f8e6f77cad9/edit

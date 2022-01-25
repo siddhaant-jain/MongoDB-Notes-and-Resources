@@ -2,7 +2,7 @@
 
 ## basic db commands
 - create a database
-> use /<dbname>/
+    > use /<dbname>/
 - create a collections in database
 - use a database
 - list all databases

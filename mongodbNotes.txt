@@ -2,7 +2,7 @@ to use mongo shell in docker: docker exec -it mongodb-database /bin/sh
 -- mongodb-database is the container name
 
 - either don't have any environment variables in docker compose file if we don't want to make it secure
-- else use command: mongo admin -u uname -p 'password' 
+- else use command: mongo admin -u siddhant -p 'dbpass' 
 - or use command: mongo admin -u uname -p 'password' --authenticationDatabase admin
 - where uname and password should match what is given in docker compose file
 - same can be checked using 'env' command since they're environment variables
@@ -231,6 +231,8 @@ check for $elemmatch $gte $lte
 
 -----------------------------------------------------------------------------------------
 
+##### from udemy course #####
+
 mongod is the database server, it should always be running if we want to connect to it
 by default it runs on port 27017, we can change it by adding --port to mongod command
 same --port can be used with mongo command to open shell and connect it to server
@@ -241,5 +243,245 @@ it looks for /db/data path in root folder or c/users_username (windows),
     if path is not present it fails to start
 if we want to store db in a different path then command is: mongod --dbpath "path of /db/data"
 
-https://www.youtube.com/playlist?list=PLp50dWW_m40UWFSV6PTgYzciZJIxgHy7Q
-https://medium.com/p/8f8e6f77cad9/edit
+difference b/w update and (updateOne or updateMany):
+    -- in updateOne or updateMany it is compulsory to pass a operator,
+    -- if we try without any operator for eg. $set, it will throw error
+    -- but with update it will simply create a new document with field passed
+        and relace it with existing document (objectId of all the replaceed documents will be same) 
+    -- for eg there are two documents {_id:1, name: random1, salary: 5},{_id:2, name: random2, salary: 10}
+        and we write update query like db.emp.update({name:random2}, {age15})
+        expectation is {_id:1, name: random1, salary: 5, age:15}, but it will become {_id=1, age=15}
+        correct way of doing was db.emp.update({name:random2}, {$set: {age15}})
+    -- so better to use updateOne and updateMany
+    -- simple update command can work like replace, but there is different func for replace also
+
+find doesn't return a array of documents as it looks like
+instead it sends a cursor object (which has lot of metadata)
+bcz data can be huge so sending all at once can be very costly
+to get as array
+- db.student_new.find().toArray()
+.pretty() is a cursor function as hence will not work with commands which return
+a document or array of documents (eg. findOne())
+
+
+data types in mongodb:
+- text (enclosed with double quotes/ single quotes)
+    - no limitation on individual text (but total document size should not exceed 16mb)
+- booleans (true/false)
+- numbers (32bit), numberLong(64 bit), numberDecimal (in shell, everything by default is 64bit float)
+- objectId (special data to indentify a mongodb document uniquely)
+- ISODate (store date objects) (new Date() in shell gets current date in date'T'time'Z' format)
+- Timestamp (a long number based on current time in milliseconds) 
+    (new Timestamp() in shell gets current date)
+- embedded documents
+- Arrays (of any of the above datatypes)
+
+eg.
+{name: "Dunzo", isStartup: true, employees: 33, funding:1234567890124567890, 
+details:{ceo "unknown", launched:2020}, tags: [{title:"deivery"}, {title:"e-commerce"}],
+foundingDate: new Date(), insertedAt: new Timestamp()
+}
+-- in above funding number will get truncated
+-- so storing in string can b good idea
+
+{a: NumberInt(1)} this will be lesser in size than {a: 1}
+bcause former is Int32 and later is float64
+
+- relation is mongodb
+    -- to establish relation between two kind of documents
+        eg. customer collection and address collection
+        or customer collection and branches visited collection
+    -- two ways to establish relation
+        - embedded document (inside customer we can have address document or list of 
+            address documents)
+        - references
+            - embedding doesn't work in all cases. It works for address bcz an address mostly will be
+                associated with 1 or very few customers
+            - but in case of branch visited, one brnch will be visited by many customers, so our
+                data will contain lot of duplicates since all of data for a single branch will be stored
+                with all customers visiting it
+            - and if any of branch data changes, then we need to change it for all customers who ever 
+                visited
+            - so for references we only store id of branch and have a separate branch collection 
+
+    eg. of references
+    - db.patientdb.insertOne({name: "Max", age:29, diseaseSummaryId: "max-summary-1"})
+    - db.diseaseSummaries.insertOne({_id: "max-summary-1", diseases: ["cold", "broken-leg"]})
+
+    -- to combine both (2 steps)
+    - db.patientdb.findOne({name: "Max"})
+    - var dsid = db.patientdb.findOne({name: "Max"}).diseaseSummaryId
+    - db.diseaseSummaries.findOne({_id = dsid})
+
+    -- in this example, embedded document will be better (one to one relationship)
+        -- if we're building a web app where we need to render both info
+        -- but reference document will be better for a analytical use case 
+            -- since we might need to analyse diseases alone, without info of patient
+
+    -- relation for questions-answers thread (one to many relationship)
+        -- one ques can have many answers, but one answer is for one ques only
+        -- for such use case, embedded document is better
+        -- in document which is on 'one' side (question) can embed 'many' side document (answers)
+
+    -- relation for city-citizen (one to manny relationship)
+        -- one city will have many citizens, but citizen can live in only one city
+        -- if we use embedded doc, city document size might hit 16mb limit for very
+            populated cities like Mumbai, delhi
+        -- we get lot of useless citizen data if we just want to analyse city data
+        -- for such use cases, references are better
+        -- with each citizen, we can store the cityId, bcz if we store citizens with city
+            the array will contains millions of elements
+    
+    -- relation for orders (customers-products) (many to many relationship)
+        -- for such use cases, references is better
+        -- we can have products collection and customers collection
+        -- and then we can have order collection with customerid and productid
+        -- or better we can store list of orders in customer collection 
+        -- each element of order array can have an embedded document productid and quantity
+
+        -- we can use embedded data with only one problem, lot of duplication
+        -- so if we need to change a product, it has to be changed for all customer who brought it
+        -- but if in the use case, even if product is updated, the record doesn't need to change
+            bcz it maintains the snapshot of details while placing order, then embedded can be considered
+
+    -- $lookup
+        -- db.books.aggregate([{$lookup: {from: "author_collection", localField: "authors",
+        foreignField: "_id", as:"creators"}}])
+        -- used to join author collection with books collection
+        -- will match "authors" column from books to "_id" column from authors
+        -- it will have all existing keys along with new key "creators" having 
+            author collection objects
+        -- useful with references
+
+assignment: user -> create/edit/delete/fetch one/ fetch many/ comments on : post
+identify nd create mongodb collections and relations and way to store relation
+
+### my solution 
+collections -> users, posts, comments (correct based on video solution)
+relations
+user -> post (one to many)
+post -> comments (one to many) (embedded) (correct based on video solution)
+user -> comment (one to many) (reference) (correct based on video solution)
+
+user: {userId, username, age, email} (correct based on video solution)
+post: {postId, title, postContent, tags, 
+        author(userId), comment : { userId, commentContent}} (correct based on video solution)
+
+-- schema validation
+db.createCollection("postsCollection", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["title", "text", "author", "comments"],
+            properties: {
+                title: {
+                    bsonType: "string",
+                    description: "must be a string and is requried"
+                },
+                text: {
+                    bsonType: "string",
+                    description: "must be a string and is requried"
+                },
+                author: {
+                    bsonType: "objectId",
+                    description: "id from user collection"
+                },
+                comments: {
+                    bsonType: "array",
+                    description: "array of comments on post, can be empty array",
+                    item: {
+                        bsonType: "object"
+                        required: ["commentContent", "author"]
+                        properties: {
+                            commentContent: {
+                                bsonType: "string"
+                                description: "actual comment made my a user"
+                            },
+                            author: {
+                                bsonType: "objectId",
+                                description: "id from user collection"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+})
+
+-- using above validation if we pass a wrong value, insertion fails and document is not inserted
+-- to modify validation of already crated collection
+db.runCommand({collMod: "postsCollection", 
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["title", "text", "author", "comments"],
+            properties: {
+                title: {
+                    bsonType: "string",
+                    description: "must be a string and is requried"
+                },
+                text: {
+                    bsonType: "string",
+                    description: "must be a string and is requried"
+                },
+                author: {
+                    bsonType: "objectId",
+                    description: "id from user collection"
+                },
+                comments: {
+                    bsonType: "array",
+                    description: "array of comments on post, can be empty array",
+                    item: {
+                        bsonType: "object"
+                        required: ["commentContent", "author"]
+                        properties: {
+                            commentContent: {
+                                bsonType: "string"
+                                description: "actual comment made my a user"
+                            },
+                            author: {
+                                bsonType: "objectId",
+                                description: "id from user collection"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    validationAction: "warn"
+})
+
+default validationAction is "error"
+
+-- mongodb shell and server
+-- dbpath is where actual mongodb data get written and --logpath is where logs get written
+
+-- command to start mongo server with these configured
+- mongod --dbpath 'path to folder to store db'  --logpath 'path to folder to store logs/logFileName.log'
+-- for log folder we also need to provide a path to log file where to write it (not necessary to create
+    it beforehand)
+
+-- mongodb by default uses 'WiredTiger' as storage engine but we can change it
+
+-- fork option (ony runs with mac and linux)
+-- import to give logpath when running fork command
+- mongod fork --logpath 'path to folder to store logs/logFileName.log'
+-- now it will run as a service in background, and not block the cmd prompt
+-- in windows, we have option to run it as a service (same as fork), which we 
+    select while installation
+-- command in windows: net start mongodb
+-- to shutdown this service running in background:
+-- in mongo shell type
+- use admin
+- db.shutdownServer()
+-- this works in windows as well, alternatively in windows we can also use
+- net stop mongodb
+
+-- we can create a config file with all these options (so it is saved for future)
+-- .cfg extension, look more in documentation
+-- how to use it config file
+- mongod -f 'path to config file'
+
+-- create operation in details

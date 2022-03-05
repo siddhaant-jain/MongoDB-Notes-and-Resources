@@ -485,3 +485,89 @@ default validationAction is "error"
 - mongod -f 'path to config file'
 
 -- create operation in details
+
+- db.collection_name.insertOne({name: "sid", age: 25, hobbies: ["tv-series", "books"]})
+-- this will automatically create an id with field name _id and type ObjectId
+
+- db.collection_name.insertMany([{name: "ravi", age: 26, hobbies: ["tv-series", "movies"]},
+ {name: "sowmya", age: 24])
+ -- id will be created automatically for all the documents
+
+-- insertOne takes a document as an argument (enclosed in {})
+-- insertMany takes a list of documents as an argument (enclosed in [])
+-- we can't simply pass ',' separated docuemnts to insertMany as argument
+
+- db.insert({name: "ritik", age:25})
+- db.insert([{name: "Utkarsh", age:24}, {name: "Rana", age:26}])
+-- insert can be used for one or many records
+
+-- INSERT VS INSERTONE/INSERTMANY
+-- insertOne and insertMany return back the id of newly created document which insert does not
+-- when we create an application, we generally want tp return its id for further use
+-- but with insert it is ineffecient bcz we have to wait for insertion to complete and the 
+    query the entire collection again
+
+-- create custom id instead of using auto-generated ids
+-- we can explicitly mention '_id' field in each document
+-- if we pass any duplicate id which is already present in the collection,
+    then insert operation will fail and we'll get the error msg
+
+-- ORDERED_INSERT: if we are bulkInserting (insertMany), then all documents before the duplicate
+    was encountered will be added, but all other after the duplicate will fail 
+    (even if they're correct) ...... This is the default behaviour of MongoDb, but can be changed
+-- we can change the ORDERED_INSERT behaviour in insertMany
+- db.collection_name.insertMany([{}, {}, {}], {ordered: false})
+-- UNORDERED_INSERT after passing list of documents, we can pass a document of arguments
+    in this case we have one argument, 'ordered' value of which by default is true,
+    but we're setting it to false. So all the docuemnts will be tried to insert, even if any
+    of them fails. So we can have multiple failed documents as well as inserted docuemnts
+
+-- in any of the case, a ROLLBACK will not happends, i.e. whatever got inserted before failed document
+    won't be implicitly removed from db on encountering a failed document
+
+-- WRITECONCERN (writeConcern) => {w: 1, j:undefined}
+-- w means write and number (it's value) is the number of instances of server we want
+    it acknowledged
+-- j stands for the journal (like a todo list)
+-- we get acknowledged true msg bcz we have set w to 1
+
+-- ATOMICITY
+-- suppose there is a document with multiple fields and when writing it to the server
+    write operation fails after writing some fields. If operation is not atomic, then we
+    can have a partially written document in the database. But MongoDb gurantees ATOMICITY
+    and hence a document would either be completly written or completly failed (done using rollback)
+-- in case of bulk insert, atomicity is still at document level and not operation level
+    
+-- IMPORTING DATA
+- mongoimport filepath_in_local_machine.json -d database_name -c collection_name --jsonArray --drop
+-- if database or collection not present they'll created while running the command
+-- json file can contain single document or array of multiple documents. By default command assumes
+    it a single document. To specify otherwise, we use --jsonArray
+-- by default if appends these documents, if collection already exists, but we can drop the 
+    existing collection and create a new one with these documents using --drop
+
+eg. mongoimport tv-shows.json -d siddhant -c tvshows --jsonArray --drop -u "admin" -p "pass" --authenticationDatabase admin
+     
+# methods, filters and operators in mongodb
+-- each command starts with db followed by collection_name then method name
+-- so commands like insertOne, find, update are all different methods
+-- methods can contain documents as arguments
+-- a document inside method can simply be data or filter
+eg. db.collection_name.find({age:32})
+-- inside find method we passed a document which contains a filter that age should be
+    equal to 32
+
+-- there can be more complex filters:
+eg. db.collection_name.find( {age: {$gt: 30}} )
+-- here $gt is an operator (greater than) [it is a range operator]
+-- all operators starts with a '$'
+
+-- type of operators
+    -- query (eg. $eq) & projection (eg. $, $elemmatch, $meta, $slice) operators
+    -- update (eg. $inc)
+    -- query modifiers (depricated)
+    -- aggregations
+
+
+# query selectors
+ 

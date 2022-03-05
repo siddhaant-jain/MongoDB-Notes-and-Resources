@@ -7,6 +7,8 @@
 - create a collections in database
 - use a database
 - list all databases
+- delete a database (will delete the database which we are currently using)
+    > db.dropDatabase()
 - list all collections in current database
 - see which database we are currently using
 - drop a collection

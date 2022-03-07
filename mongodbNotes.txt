@@ -495,7 +495,7 @@ default validationAction is "error"
 
 -- insertOne takes a document as an argument (enclosed in {})
 -- insertMany takes a list of documents as an argument (enclosed in [])
--- we can't simply pass ',' separated docuemnts to insertMany as argument
+-- we can't simply pass ',' separated documents to insertMany as argument
 
 - db.insert({name: "ritik", age:25})
 - db.insert([{name: "Utkarsh", age:24}, {name: "Rana", age:26}])
@@ -519,8 +519,8 @@ default validationAction is "error"
 - db.collection_name.insertMany([{}, {}, {}], {ordered: false})
 -- UNORDERED_INSERT after passing list of documents, we can pass a document of arguments
     in this case we have one argument, 'ordered' value of which by default is true,
-    but we're setting it to false. So all the docuemnts will be tried to insert, even if any
-    of them fails. So we can have multiple failed documents as well as inserted docuemnts
+    but we're setting it to false. So all the documents will be tried to insert, even if any
+    of them fails. So we can have multiple failed documents as well as inserted documents
 
 -- in any of the case, a ROLLBACK will not happends, i.e. whatever got inserted before failed document
     won't be implicitly removed from db on encountering a failed document
@@ -570,4 +570,89 @@ eg. db.collection_name.find( {age: {$gt: 30}} )
 
 
 # query selectors
- 
+to check all operators, go to mongodb docs -> mngodb server -> reference -> operators
+
+# COMPARISON OPERATORS 
+$eq -> db.tvshows.find({ runtime: {$eq: 60} })
+    -- eq is the defaulte comparison oprator and hence we can simply write: 
+        db.tvshows.find({runtime: 60})
+$gt -> db.tvshows.find({ runtime: {$gt: 60} })
+$gte -> db.tvshows.find({ runtime: {$gte: 60} })
+$ne (not equal) -> db.tvshows.find({ runtime: {$ne: 60} })
+$lt (less than) -> db.tvshows.find({ runtime: {$lt: 60} })
+$lte (less than equal) -> db.tvshows.find({ runtime: {$lte: 60} })
+$in (value in mentioned array) -> db.tvshows.find({runtime: {$in: [30,42,73]}})
+$nin (not in (opposite of $in)) -> db.tvshows.find({runtime: {$nin: [30,42,73]}})
+
+-- can be used with embedded field as well
+-- we need to mention field in double quotes (otherwise it is considered invalid)
+db.tvshows.find({"rating.average": {$gt: 7}}).pretty()
+
+-- using operator with Arrays
+-- find document where genre is "Drama" (case sensitive)
+db.tvshows.find({genres: "Drama"}).pretty()
+-- finding documents with exactly matching array (only contains drama)
+db.tvshows.find({genres: ["Drama"]}).pretty()
+
+# PRETTY and COUNT
+.pretty() -> adding this at end prints it formatted with nested look
+.count() -> adding this at end prints returns the no. of docs to be rturned by the query preceding it
+
+
+# LOGICAL OPERATORS
+$or -> eg. finding all docs with rating less than 5 or more than 9.3
+    - individual queries
+    db.tvshows.find("ratings.average": {$lt: 5})
+    db.tvshows.find("ratings.average": {$gt: 5})
+    - combining both queries
+    db.tvshows.find({$or: [{"rating.average": {$lt: 5}}, {"rating.average": {$gt: 9.3}}]}).count()
+
+$nor -> neither of the conditions are met
+    db.tvshows.find({$nor: [{"rating.average": {$lt: 5}}, {"rating.average": {$gt: 9.3}}]}).count()
+
+$and -> db.tvshows.find({$and: [{"rating.average": {$gt: 9}}, {genres: "Drama"}]})
+    Note: genres containing drama and not genres exactly equal to drama
+    -- $and is the default logical operator so we can simply write it as:
+    db.tvshows.find({"rating.average": {$gt: 9}, genres: "Drama"})
+    -- this default way will not work when we have multiple condition on same column 
+    -- bcz some drivers (eg. javascript) don't allow duplicate keys in their dictionary
+    -- and also last condition on same key replaces all the previous ones (in all drivers)
+    eg. db.tvshows.find({genres: "Drama", genres: "Horror"})
+    is equivalent to db.tvshows.find({genres: "Horror"})
+
+$not -> db.tvshows.find({runtime: {$not: {$eq: 60}}}).count()
+    -- easier way to write this would be simply db.tvshows.find({runtime: {$ne: 60}}).count()
+
+# ELEMENT OPERATORS
+$exists -> find all documents where the field exists/doesn't exists 
+    db.collection_name.find({field_name: {$exists: true}})
+    -- can be combined with other filters as well
+    db.collection_name.find({field_name: {$exists: true, $gt: 30}})
+    -- if any document has the field but value is null, then also it will show in (exists: true)
+    -- to eliminate null values add additional filter
+    db.collection_name.find({field_name: {$exists: true, $ne: null}})
+
+$type -> find documents wher field contains value of specific data type
+    db.collection_name.find({field_name: {$type: "number"}})
+    -- we can give array of datatypes, any one of which if satisfies, the doc wil be displayed
+    db.collection_name.find({field_name: {$type: ["doble", "string"]}})
+
+# EVALUATION OPERATORS
+$regex -> to specify a regular expression (not very efficient)
+    db.tvshows.find({name: {$regex: /Game/}})
+
+$expr -> compare two fields of a document
+    eg. a document: {volume:200, target: 120}, {volume: 120, target:300}
+    db.collection_name.find({$expr: {$gt: ["$volume", "$target"]}})
+    -- only certain operators work with expr (can be looked in documentation)
+    -- column names should be enclosed in double quotes and start with $ sign
+    -- without $ sign they are just treated has hardcoded strings
+
+    more complex expression (to find all documents where volume>190 and volume-target>=10):
+    db.collection_name.find({$expr: {$gt: [{$cond: {if: {$gte: ["$volume", 190], 
+    then: {$subtract: ["$volume", 10]}},
+    else: "$volume"
+    }}, "$target"]}})
+
+
+

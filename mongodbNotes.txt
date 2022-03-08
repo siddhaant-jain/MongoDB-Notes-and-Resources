@@ -547,7 +547,9 @@ default validationAction is "error"
     existing collection and create a new one with these documents using --drop
 
 eg. mongoimport tv-shows.json -d siddhant -c tvshows --jsonArray --drop -u "admin" -p "pass" --authenticationDatabase admin
-     
+
+#### READ OPERATIONS IN MongoDb ####
+
 # methods, filters and operators in mongodb
 -- each command starts with db followed by collection_name then method name
 -- so commands like insertOne, find, update are all different methods
@@ -654,5 +656,195 @@ $expr -> compare two fields of a document
     else: "$volume"
     }}, "$target"]}})
 
+# QUERYING ARRAYS
+-- query arrays with embedded documents
+    eg. document: {name:"xyz", age: 32, hobbies: [{title: "reading books", rating: 5}, 
+                    {title: "video games", rating: 4}]}
 
+    -- finding hobby "reading books"
+    db.collection_name.find({hobbies: "reading books"}) -- wrong (will find exactly this value in array)
+    db.collection_name.find({hobbies: {title:"reading books"}}) -- wrong (will find exactly this document in array)
+    db.collection_name.find({"hobbies.title": "reading books"}) --right (same like a single embedded document)
+
+$size -> find size of array
+    -- with size, we can only use exact matches and not greater than, less than etc.
+    db.collection_name.find({hobbies: {$size: 3}})
+
+$all -> array should contains all the specified elements in any order (other elements can also be present)
+    db.collection_name.find({arrayColumn: ["elem1", "elem2"]})
+    -- above exact match won't work, bcz if a document has same elements in different order they
+        will not be returned
+    db.collection_name.find({arrayColumn: {$all: ["elem1", "elem2"]}})
+
+$elemMatch -> 
+    eg document: {name: "xyz", hobbies: [{title: "sports", "freq":3},{title: "cooking", freq:6}]}
+    -- find all elements where freq of sports is greater than 3
+    db.collection_name.find($and: [{"$hobbies.title": "sports"}, {"$hobbies.freq": {$gt: 3}}])
+    -- above document should not be returned but it will be, bcz two and conditions are connected
+        and hence if it finds any array element with freq>3 it will take it as true
+    db.collection_name.find({hobbies: {$elemMatch: {
+        {title: "sports", freq: {$gt: 3}}
+    }}})
+
+# CURSORS
+find() method gives us a cursor (unlike findOne())
+cursor is basically a pointer which gives batches of data (to reduce too much of data transfers)
+for shell, default batch size is 20
+
+cursor has sevral methods like
+cursor = db.collection_name.find()
+cursor.next() -> gives next document
+cursor.hasNext() (boolean value)
+forEach -> cursor.forEach(doc => {printjson(doc)}) (javascript way)
+
+sorting cursor -> db.collection_name.find().sort({"rating.average": 1, runtime: -1})
+    - 1 is for ascending and -1 for descending
+
+skipping and limiting cursor results (used with pagination in apps)
+.skip() -> skip n number of documents from starting
+    db.collection_name.find().sort({"rating.average": 1, runtime: -1}).skip(10)
+.limit() -> limit no of documents cursor retrieves at one time
+    db.collection_name.find().sort({"rating.average": 1, runtime: -1}).limit(10)
+-- we can write sort, limit, skip in any order but mongodb always does it in same 
+    order (sort -> skip -> limit)
+
+# PROJECTION -> control what data is returned
+db.collection_name.find({}, {name: 1, genres:1, runtime: 1, rating:1, "schedule.time":1,  _id:0})
+-- first argument is any filter, if there are none we can simply pass an empty doc
+-- second argument is the projection
+-- if we mention 1 it is included, if we mention 0 it is excluded
+-- by default every field has a 0, except objectId which has a 1
+-- to remove objectId while displaying we need to explicitly mention it with a 0
+
+-- projection on arrays
+    db.collection_name.find({genres: {$all: ["Drama", "Horror"]}}, {"genres.$": 1})
+    -- this will give only first macth, only o/p horror for genres
+    -- bcz after matching horro it confirms than document has both values and then returns first match only
+
+    -- we can make it more complex, since projection just excepts a boolean value (1/0)
+        we can create that with our own conditions
+    db.tvshows.find({genres: "Drama"}, {genres: {$elemMatch: {$eq: "Horror"}}})
+
+$slice -> 
+    -- get first n elements of an array
+    db.tvshows.find({}, {name:1, genres: {$slice: 2}})
+
+    -- if we give in array it will skip first m values and take next n values 
+    -- in below case it will skip first 2 values and take next 4 values
+    db.tvshows.find({}, {name:1, genres: {$slice: [2,4]}})
+
+#### UPDATE OPERATIONS IN MongoDb ####
+update is a two step process:
+1) identify document that needs to be changed 2) make the changes
+
+updateOne -> takes first matching document and makes the update even if there are multiple documents 
+    matching the conditions
+updateMany -> will update all documents matching the given conditions
+
+$set -> adds new fields to the matching documents, doesn't change the ObjectId
+    db.collection_name.updateOne({_id:1}, {$set: {hobbies: ["elem1", "elem2"]}})
+    -- here these elements won't be added to the existing array, but simply overwrite previous 
+        array with this new one
+    db.collection_name.updateMany({"hobbies.title": "sports"}, {$set: {isSporty: true}})
+
+    -- we can aslo set multiple fields
+    db.collection_name.updateOne({_id:1}, {$set: {age:40, phonenum: 8004455667}})
+
+# Incrementing and decrementing values
+$inc -> db.collection_name.updateOne({_id:1}, {$inc: {age: 2}})
+to decrement ->db.collection_name.updateOne({_id:1}, {$inc: {age: -1}})
+
+multiple update operators can be given in same statement
+db.collection_name.updateOne({_id:1}, {$inc: {age: 2}, $set: {isSporty: false}})
+
+-- conflicting updates will throw error
+eg. db.collection_name.updateOne({_id:1}, {$inc: {age: 2}, $set: {age: 30}})
+-- here we are doing 2 different operations to same field age and hence it is a conflict
+
+# $min, $max, $mul
+$min -> it will change the value, if new value is less than what is currently stored 
+    db.collection_name.updateOne({_id:1}, {$min: {age:35}}) 
+    -- so if current age is say 38 then it will make it 35, but if it 34 it will stay the same
+
+$max -> same logic as min
+$mul -> multiply
+    -- if we want to give 10%hike .. we can simply multiply current salary with 1.1
+     db.collection_name.updateOne({_id:1}, {$mul: {salary: 1.1}})
+
+# removing a field if condition matches
+-- one solution is given below, but setting to null is not same as removing
+    db.collection_name.updateOne({isSporty:true}, {$set: {phone:null}})
+-- correct method given below
+$unset ->opposite of $set, $set is for adding new field/updating existing field
+    while $unset is to delete an existing field
+db.collection_name.updateOne({isSporty:true}, {$unset: {phone:""}})
+
+$rename -> to rename a column (below doing it across all documents)
+    -- if a document doesn't contain the old field, it will not have the 
+        new field also, since it is just a rename
+db.collection_name.updateOne({}, {$rename: {salary: grossSalary}})
+
+# $upsert (update/insert)
+-- if we run below query, the document will be lost since this document doesn't exist
+    so nothing to update, and if we tried to insert it as new document and it was already
+    present then it will throw error opr create duplicate (for scenarios where we don't 
+    know whether doc exists or not)
+db.collection_name.updateOne({name: "newGuy"}, {$set: {age:35, hobbies: [h1,h2], isSporty:true}}, {upsert: true})
+-- upsert is the third argument, default value is false
+
+# updating matched array elements
+-- update document where hobbies have sports with frequency greater than or equal to 3
+    db.collection_name.updateMany({hobbies: {$elemMatch: {title: "sports", freq: {$gte: 3}}}}, 
+    {$set: {"hobbies.$.highFreq": true}})
+-- we don't want to change complete hobbies element, which is part of root document
+-- but some elements inside hobbies, so we use '.' and enclose in quotes
+-- also not hobbies elements but only which matched the condition so we use '.$' to
+    refer to each matched element, inside which we are adding a new field
+-- in this for each document, only first element of hobbies array for each document will be
+    updated. Since in this case each document will have only one element with one title so
+    it should not be a problem
+
+# update all elements of array for matching parent document
+-- update documents where freq is greater than 2 
+    db.collection_name.updateMany({totalAge: {$gt: 30}}, {$inc: {"hobbies.$[].frequency": -1}})
+-- arrayName.$ meant for matching condition documents first array item
+-- arrayName.$[] means for matching condition documents all array item
+-- we can use any of $set, $inc etc.
+
+# update some of elements of array for matching condition
+    db.collection_name.updateMany({"hobbies.freq": {$gt:2}}, {$set : {"hobbies.$[el].goodFreq": true}},
+    {arrayFilters: [{"el.freq" : {$gt:2}}]})
+-- arrayFilters is third argument, in this only we give args like upsert and writeConcern
+-- el is an identifier given by us, we can choose any name
+-- first filter need not be related to array, it can be anything, it is simply to shortlist the 
+    parent document whose array we'll be checking
+-- in arrayFilters we give the condition to filter elements of array which need to be updated,
+    in this case it matches the first arg but not always necessary
+-- same variable should be mentioned in 2nd arg also
+
+# Adding elements to arrays
+-- adding one document
+$push -> db.updateMany({age: {$gt: 30}}, {$push: {hobbies: {title: "praying", freq:5}}})
+
+-- adding multiple documents
+$each -> db.updateMany({age: {$gt: 30}}, {$push: {hobbies: {$each: [
+    {title: "praying", freq:5},
+    {title: "meetings", freq:7}
+], $sort: {freq: -1}}}})
+    -- $sort is a sibling of each (is added in same document)
+    -- it sorts before insert it in the main document, $slice can also be used
+    -- entire array is sorted (including existing elements)
+
+$addToSet -> similar to push
+    -- but it takes only one document at a time, so $each won't work with it
+    -- it doesn't allow to enter a duplicate to the array
+    -- it won't throw error, but nothing will be inserted
+    
+
+# removing elements to arrays
+$pull -> db.collection_name.updateMany({age: {$gt: 30}}, {$pull: {hobbies: {title: "praying"}}})
+    -- pull takes a condition, we can use other operators also like $gt etc.
+$pop -> takes out only the last element
+        db.collection_name.updateMany({age: {$gt: 30}}, {$pop: {hobbies: 1}})
+    -- 1 means last element and -1 means first element
 

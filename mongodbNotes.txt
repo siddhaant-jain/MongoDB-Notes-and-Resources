@@ -848,3 +848,21 @@ $pop -> takes out only the last element
         db.collection_name.updateMany({age: {$gt: 30}}, {$pop: {hobbies: 1}})
     -- 1 means last element and -1 means first element
 
+#### DELETE OPERATIONS IN MongoDb ####
+
+db.collection_name.deleteOne({name: "personName"})
+-- the argument can take anything which we pass in a find or update op to filter documents
+-- only delete first record that macthes
+
+-- delete all people who have sports as hobby and age field doesn;t exists
+db.collection_name.deleteMany({$and: [{totalAge: {$exists: false}}, {"hobbies.title": "sports"}]})
+
+# delete all entries in a collection
+db.collection_name.deleteMany({})
+OR
+db.collection_name.drop()
+
+# delete a database
+db.dropDatabase()
+
+#### INDEXES IN MongoDb ####

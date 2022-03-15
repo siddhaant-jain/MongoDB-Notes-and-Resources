@@ -1,0 +1,121 @@
+stored procedure is a group of T(Transact)-Sql statements
+
+if we have to write a query again and again, we can save it as a SP and just call it by sp name
+
+eg. suppose we want to write a query where first name and last name are showin in full name column
+for candidats who are adult
+
+CREATE PROCEDURE spGetCandidates(name of stored procedure)
+AS
+BEGIN
+	-- body of stored procedure
+	select concatWs(' ', firstName, lastName) as fullName, age from candidateTable where age>18
+END
+
+to run it in sql sevrer : just write stored_procedure_name and run it OR Exec stored_procedure_name OR Execute stored_procedure_name
+
+creating stored procedure with input parameters
+
+CREATE PROCEDURE spParameterized
+@Gender nvarchar(20)
+@DepartmentId int
+AS
+BEGIN
+	Select Name, Gender. DepartmentId from employeeTable
+	where Gender=@Gender and DepartmentId=@DepartmentId
+END
+
+to execute: spParameterized 'Male',1 (either pass all the parameters in correct order
+or spParameterized @DepartmentId=1, @Gender='Male'
+
+command to view text of stored procedure: sp_helptext spParameterized (sp_helptext is a system stored procedure in sql server)
+
+To modify a stored procedure, simply replace CREATE with ALTER
+
+to delete a stored procedure: DROP proc spParameterized
+
+encrypt text of stored procedure:  Before AS keyword in CREATE/ALTER command write 'WITH Encryption'
+
+creating stored procedure with output parameters:
+
+CREATE PROCEDURE spOpParameterized
+@Gender nvarchar(20)
+@EmployeeCount int Output
+AS
+BEGIN
+	Select @EmployeeCount = count(Id) from employeeTable
+	where Gender=@Gender
+END
+
+Running stored procedure with output param
+	- we initialize a variable (@EmpTotal) with same data type as mentioned in stored procedure to store the value
+	- instead of printing, we can also pass it as input to another stored procedure
+	- output keyword in execute line is compulsory otherwise it returns null value, even if we are writing like 
+		@EmployeeCount = @EmpTotal, it will give value only when we write @EmployeeCount = @EmpTotal output
+	
+Declare @EmpTotal int
+Execute spOpParameterized 'Male', @EmpTotal Output
+if(@EmpTotal is null)
+	Print 'null value'
+else
+	Print 'not null'
+Print @EmpTotal
+
+sp_help: it is a system stored procedure which can be used with tables. views or user-defined stored procs to get their details
+
+output parameters vs return values
+whenever we execute a stored procedure it returns an integer status variable (0: success, non-zero: failed)
+example of return statement
+
+CREATE PROCEDURE spRetParameterized
+@EmployeeCount int Output
+AS
+BEGIN
+	return (Select @EmployeeCount = count(Id) from employeeTable)
+END
+
+Running sp with return values
+
+DECLARE @TotEmp int
+Execute @TotEmp = spRetParameterized
+Print @TotEmp
+
+Case where output parameter will work but return value will not work
+
+Using o/p parameter
+
+CREATE PROCEDURE getEmpByIdOp
+@Id int,
+@EmployeeName nvarchar(20) Output
+AS
+BEGIN
+	Select @EmployeeName = empName from employeeTable where EmpId=@Id
+END
+
+DECLARE @Name nvarchar(20)
+Execute getEmpByIdOp 1, @Name output
+Print @Name
+
+Using return value
+
+CREATE PROCEDURE getEmpByIdRet
+@Id int
+AS
+BEGIN
+	return (Select empName from employeeTable where EmpId=@Id)
+END
+
+DECLARE @Name nvarchar(20)
+Execute@Name = getEmpByIdRet 1
+Print @Name
+
+-- return value method will fail, bcz return value can be only an integer but nvarchar is being returned
+-- we cannot return multiple values with return value method
+
+Advantages of stored procedure:
+- retain and reuse an execution plan (execution plan: best way to get the result of a query)
+- reduces network traffic (over network just name of stored proc and parameters are sent, if we directly send a query then for a complex query
+	we could be sending hundreds of lines over the network)
+- code resuability and better maintainance (if it is an inline query we have to change it across diff applications)
+- better security (black box to application, no access to underlying tables)
+- avoid sql injection attacks 

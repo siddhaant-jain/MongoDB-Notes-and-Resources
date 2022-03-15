@@ -866,3 +866,22 @@ db.collection_name.drop()
 db.dropDatabase()
 
 #### INDEXES IN MongoDb ####
+-- index can speed up find, update and delete queries
+-- suppose a collection has documents with each of them having a field 'name'.
+    if we want to search document with name "xyz" in the collection and there's no index set then 
+    mongodb will do a collscan (collection scan) -- default approach
+-- collscan -> to look through every single document and check if name present or not (for large 
+    collections this can make the query very slow)
+-- ixscan -> first searches the seller index and then get all the documents
+
+-- index -> is a ordered list of field on which we have created the index (not the entire document but
+    just the field) -> which also contains list of pointers to all document containing this value for 
+    the given field
+
+-- we shouldn't use too many indexes also. Bcz each index comes with a price. The find, update and 
+    delete queries get speed up but insert becomes slow 
+
+    https://www.google.com/search?q=practice+mongodb&rlz=1C1CHZL_enIN823IN823&oq=practice+mon&aqs=chrome.1.69i57j0i512l2j0i10i131i433j0i512j0i10i131i433j0i10j0i512j0i10j0i10i131i433.3687j0j7&sourceid=chrome&ie=UTF-8
+    https://www.w3resource.com/mongodb-exercises/
+    https://www.google.com/search?q=hape+of+Water&rlz=1C1CHZL_enIN823IN823&sourceid=chrome&ie=UTF-8
+    https://www.google.com/search?q=Under+The+Skin&rlz=1C1CHZL_enIN823IN823&sourceid=chrome&ie=UTF-8

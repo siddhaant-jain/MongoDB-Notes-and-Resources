@@ -3,7 +3,11 @@ to use mongo shell in docker: docker exec -it mongodb-database /bin/sh
 
 - either don't have any environment variables in docker compose file if we don't want to make it secure
 - else use command: mongo admin -u siddhant -p 'dbpass' 
-- or use command: mongo admin -u uname -p 'password' --authenticationDatabase admin
+- or use command: 
+
+        mongo admin -u admin -p 'pass' --authenticationDatabase admin
+
+
 - where uname and password should match what is given in docker compose file
 - same can be checked using 'env' command since they're environment variables
 
@@ -880,6 +884,121 @@ db.dropDatabase()
 
 -- we shouldn't use too many indexes also. Bcz each index comes with a price. The find, update and 
     delete queries get speed up but insert becomes slow 
+
+-- importing person.json file
+    mongoimport persons.json -d siddhant -c contacts --jsonArray --drop -u "admin" -p "pass" --authenticationDatabase admin
+
+-- mongodb has a explain() method which can be used with find, update and delete (not insert)
+    -- it tell what mongodb does in the background
+    -- it has a key called "winningPlan" (with nested key called stage) 
+        which tells what search startegy was used (eg. COLLSCAN)
+    db.collection_name.explain().find({"dob.age": {$gt: 60}})
+
+db.collection_name.explain("executionStats").find({"dob.age": {$gt: 60}})
+-- above command will give details like executionTimeMillis (milliseconds), totalDocsExamined
+
+# create index
+- db.collection_name.createIndex({"dob.age": 1}) #1 is for ascending, -1 for descending
+
+-- now if we run the query: db.collection_name.explain("executionStats").find({"dob.age": {$gt: 60}})
+    -- the executionTimeMillis will reduce
+    -- and totalDocsExamined will be equal to only number of documents satisfying the criteria
+        and not all the documents in collection(which was the case in COLLSCAN)
+    -- the stages will not be COLLSCAN but instead they will be IXSCAN (input stage) -> FETCH (get docs)
+
+# drop index
+- db.collection_name.dropIndex({"dob.age":1})
+
+-- if we repeat the above query with age>20 (age>20 would mean all the documents) 
+    instead of age>60 with two scenarios
+    -- indexing and -- COLLSCAN
+    -- collscan will be faster bcz indexing has an additional step to look through keys and
+        then read the documents
+    -- so if index covers large portion of documents then it should not be taken
+    -- for eg. city can be a good index but country would be ineffecient (if 2-3 country data is there)
+
+# create compound indexes
+- db.collection_name.createIndex({"dob.age":1, gender:1})
+
+-- will not create two indexed but one with two fields
+-- order of writing matters
+-- if we do db.collection_name.explain().find({"dob.age": 35, "gender":"male"})
+    or if we do db.collection_name.explain().find({"dob.age": 35}) 
+    it will do index scan with this same compund index
+-- but if we do db.collection_name.explain().find({"gender":"male"}) then it will do a COLLSCAN
+    since dob is the first index
+
+#sorting using indexing
+-- indexing not only helps in finding but also in sorting
+- db.contacts.explain().find("dob.age":35).sort({gender: 1})
+
+# to see all the indexes for a collection
+- db.collection_name.getIndexes()
+-- id is a default index
+
+# configuring index (setting field to be unique)
+- db.collection_name.createIndex({email: 1}, {unique: true})
+-- will give error if this field has duplicate values already
+-- only one null value can be allowed for this field, after that it'll give duplicate error
+
+we can solve null value problem using partialFilterExpression (explained below)
+- db.collection_name.createIndex({email: 1}, {unique: true, 
+                                            partialFilterExpression: {email: {$exists: true}}})
+
+# partial filters
+- db.collection_name.createIndex({"dob.age": 1}, {partialFilterExpression: {gender: "male"}})
+-- if for our use case, we want to index only a part of the documents which we'll query more
+    often to save memory and improve performance we can use partial filters
+-- in above query index on age will be created but only for docs where gender is male
+-- so if we simply do a find on age>60, COLLSCAN will be done since it is on both genders
+-- if we add filter for gender=male also then it will do IXSCAN
+
+-- diff b/w compund and partial (since in both we have to mention all conditions)
+-- partial minimizes the keys and also write queries speed up since if it's a female then
+    no worrying about indexing
+
+# Time-to-live (TTL) index
+-- best suited for self-destroying data (like sessions of users etc.)
+- db.collection_name.createIndex({timeSensitiveCol:1}, {expireAfterSeconds:10})
+-- all existing and new documents with index which has passed 10 seconds will be deleted from the db
+-- evaluation of existing documents for expiration is considered after a new element is added and
+    not immediately after adding the index
+-- only works on date objects
+
+# multi key indexes
+-- we can use columns which contain array values as index also
+--  these will be multikey index, since not entire array is the index, but each element of
+    array becomes a index
+-- that means if there are 100 docs then there won't be 100 keys but more than that depending
+    on number of unique elements in all arrays
+-- we can also use an array of documents also as index
+-- but if we search based on the field of document which is used as index, then
+    mongodb will do a COLLSCAN
+-- it will do IXSCAN only when we search the complete array document
+
+eg. doc = {name: "abc", hobbies: ["reading", "swimming"], address: [
+    {"street": "street1", city: "Jhansi"},
+    {street: "street2", city: "jaipur"}
+]}
+
+now if we use address as the index:
+-- if we do db.collection_name.explain("executionStats").find({"address.street": street1})
+    it will do a COLLSCAN
+-- but if we do db.collection_name.explain("executionStats").find({"address": {"street": "street1", city: "Jhansi"}})
+    it will do a IXSCAN
+
+--if we want first case to be IXSCAN as well, then we can add address.street also as index.
+    But this can have big performance issues
+
+
+- we cannot have two arrays in a compund index (bcz it will have to do a cartesian product
+    for all combinations) which can lead to performance issues
+
+
+
+
+
+
 
     https://www.google.com/search?q=practice+mongodb&rlz=1C1CHZL_enIN823IN823&oq=practice+mon&aqs=chrome.1.69i57j0i512l2j0i10i131i433j0i512j0i10i131i433j0i10j0i512j0i10j0i10i131i433.3687j0j7&sourceid=chrome&ie=UTF-8
     https://www.w3resource.com/mongodb-exercises/

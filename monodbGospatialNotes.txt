@@ -1,0 +1,41 @@
+-- geospatial data needs to be stored in geoJSON format to be able to query it efficiently
+- db.collection_name.insertOne({name: "place_name", location_col: 
+    {type: "Point", coordinates: [longitude_value, latitude_value]}})
+-- location column name can be anything but the embedded document which it 
+    points to should be same (column names have to be type and coordinates with similar values)
+
+# Querying geoJSON
+- db.collection_name.find({location_col: {$near: 
+    {$geometry: {type: "Point", coordinates: [longitude_value2, latitude_value2]}}}})
+-- above query will fail if we don't have a geospatial index
+- db.collection_name.createIndex({location_col: "2dsphere"})
+-- now the above find query will work
+
+-- limit the data to a certain distance
+- db.collection_name.find({location_col: {$near: 
+    {$geometry: {type: "Point", coordinates: [longitude_value2, latitude_value2]}, 
+     $maxDistance: distInMetres, $minDistance: distInMetres}}})
+
+# get all the points that lie inside an area
+-- in this eg. we take 4 points making a rectangle (area in which we'll check)
+-- with three other points inside it while one point outside this rectangle
+
+- db.collection_name.find({$location: {$geoWithin: 
+    {$geometry: {type:"Polygon", coordinates: [ [p1_longitude, p1_latitude],
+    [p2_longitude, p2_latitude],[p3_longitude, p3_latitude], [p4_longitude, p4_latitude]
+    [p1_longitude, p1_latitude]]}}}})
+
+-- for polygon we have to create a nested array with each inner array being a point,
+    and to close the polygon, we need to repeat the first point again
+
+# check if a point lies inside an area or not
+- db.collection_name.find({location_col: {$geoIntersects: {
+    $geometry: {type: "Point", coordinates: [longitude_value2, latitude_value2]}}}})
+
+# find places within a certain radius (near command also does that, but near is also sorted)
+- db.collection_name.find({location_col: {$geoWithin: {
+    $centerSphere: [[longitude_value2, latitude_value2], 1/6378.1]
+    }}})
+-- second argument in centerSphere is the radius, which has to be provided in radians
+-- we want radius of 1km, which is converted to radians by dividing by 6378.1
+

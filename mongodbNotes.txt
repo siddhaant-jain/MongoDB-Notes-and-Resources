@@ -966,6 +966,7 @@ we can solve null value problem using partialFilterExpression (explained below)
 -- only works on date objects
 
 # multi key indexes
+
 -- we can use columns which contain array values as index also
 --  these will be multikey index, since not entire array is the index, but each element of
     array becomes a index
@@ -990,13 +991,60 @@ now if we use address as the index:
 --if we want first case to be IXSCAN as well, then we can add address.street also as index.
     But this can have big performance issues
 
-
 - we cannot have two arrays in a compund index (bcz it will have to do a cartesian product
     for all combinations) which can lead to performance issues
 
 
+# text field indexes (another multi key index)
+-- when we use a text field as index,
+    -- the text in a text field are broken down into array of words and 
+    -- also mongodb removes stop words and stems all the words 
+    -- making it an array of keyIndex
 
+suppose the text field we want to index on is description
+-- we should not index like: db.collection_name.createIndex({description: 1})
+-- if we use 1/-1 then it creates a single index on entire description
+-- so we can search for the exact complete text present in description using IXSCAN but not 
+    some specific words
 
+-- we should index like: db.collection_name.createIndex({description: "text"})
+now how to search using this field:
+- db.collection_name.find({$text: {$search: "awesome book"}})
+-- notice we didn't mention the actual field name (description), that bcz a collection can
+    only have a text index
+-- awesome book is not a connect phrase, it gives all docs where either of the words are present
+-- to give an exact pharase, we have to give in double quotes: "\" red book\""
+
+-- mongodb associated a score with each docuemnt when we do a test search.
+-- more score means the document macthed better
+-- to see the score, we need to include a meta field in projection
+    - db.collection_name.find({$text: {$search: "awesome t-shirt"}, {score: {$meta:"textScore"}}})
+-- a document having both words will have more score than document having one of the words
+-- we can use the same entire thing which we used in projection, in sort also to get better 
+    macthed documents first
+
+# creating combined text indexes
+-- if we want to have two text fields as indexes we can't directly do that
+-- for this we can combine both fields as indexes. First we need to drop all existing
+    text indexes
+- db.collection_name.createIndex({title:"text", description:"text"})
+-- above command will create only one index but with keywords from both fields (title
+    and description are two fields of the docuemnt)
+
+-- we can also exclude words from search in text search
+- db.collection_name.find({$text: {$search: "awesome -book"}})
+-- this will find all documents where word awesome is present but book is not present 
+-- we have done that by adding the '-' before the word we want to exclude
+
+-- we can change default language of text search also
+-- also we can assign to each text column
+-- below command implies that description is 10 times more important than title when doing a 
+    text search
+- db.collection_name.createIndex({title:"text", description:"text"}, {default_language: "german"},
+   weights: {title:1, description:10} )
+
+-- we can also do case-sensitive search
+db.collection_name.find({$text: {$search: "awesome -book", $caseSensitive: true}})
 
 
 

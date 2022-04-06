@@ -1045,10 +1045,3 @@ now how to search using this field:
 
 -- we can also do case-sensitive search
 db.collection_name.find({$text: {$search: "awesome -book", $caseSensitive: true}})
-
-
-
-    https://www.google.com/search?q=practice+mongodb&rlz=1C1CHZL_enIN823IN823&oq=practice+mon&aqs=chrome.1.69i57j0i512l2j0i10i131i433j0i512j0i10i131i433j0i10j0i512j0i10j0i10i131i433.3687j0j7&sourceid=chrome&ie=UTF-8
-    https://www.w3resource.com/mongodb-exercises/
-    https://www.google.com/search?q=hape+of+Water&rlz=1C1CHZL_enIN823IN823&sourceid=chrome&ie=UTF-8
-    https://www.google.com/search?q=Under+The+Skin&rlz=1C1CHZL_enIN823IN823&sourceid=chrome&ie=UTF-8
